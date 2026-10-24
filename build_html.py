@@ -1,6 +1,8 @@
-"""Tekee result.json:sta report.html (taulukko + palkkikaavio)."""
+"""Tekee result.json:sta ja data/history.csv:sta report.html (taulukot + kaaviot)."""
+import csv
 import json
-from datetime import datetime
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from html import escape
 from pathlib import Path
 
@@ -8,6 +10,58 @@ HERE = Path(__file__).parent
 rows = json.loads((HERE / "result.json").read_text(encoding="utf-8"))
 games = json.loads((HERE / "games.json").read_text(encoding="utf-8"))
 played = sum(g["ended"] for g in games)
+
+PALETTE = ["#d64545", "#2f7fd1", "#e69f00", "#2a9d6f", "#8e5bd0", "#d1568e", "#6b7280", "#17a2b8"]
+
+
+def load_history():
+    path = HERE / "data" / "history.csv"
+    if not path.exists():
+        return {}
+    series = {}  # joukkue -> [(pvm, putoamis-%)]
+    with path.open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            series.setdefault(r["team"], []).append(
+                (date.fromisoformat(r["date"]), float(r["relegation"])))
+    return series
+
+
+def history_chart(series, max_lines=8):
+    dates = sorted({d for pts in series.values() for d, _ in pts})
+    if len(dates) < 2:
+        return "<p>Kehityskaavio ilmestyy, kun tilannekuvia on kertynyt vähintään kaksi.</p>"
+    # näytetään joukkueet, joilla on ollut suurin putoamisriski
+    teams = sorted(series, key=lambda t: -max(v for _, v in series[t]))[:max_lines]
+    W, H, L, R, T, B = 720, 320, 44, 96, 12, 30
+    x0, x1 = dates[0].toordinal(), dates[-1].toordinal()
+    X = lambda d: L + (d.toordinal() - x0) / (x1 - x0) * (W - L - R)
+    Y = lambda v: T + (1 - v) * (H - T - B)
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Putoamisriskin kehitys" '
+           f'style="width:100%;height:auto;font:12px system-ui,sans-serif">']
+    for v in (0, .25, .5, .75, 1):
+        out.append(f'<line x1="{L}" x2="{W-R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="var(--line)"/>'
+                   f'<text x="{L-6}" y="{Y(v)+4:.1f}" text-anchor="end" fill="var(--mut)">{int(v*100)} %</text>')
+    for d in sorted({dates[0], dates[len(dates) // 2], dates[-1]}):
+        out.append(f'<text x="{X(d):.1f}" y="{H-8}" text-anchor="middle" fill="var(--mut)">{d:%d.%m.}</text>')
+    labels = []
+    for i, t in enumerate(teams):
+        c = PALETTE[i % len(PALETTE)]
+        pts = " ".join(f"{X(d):.1f},{Y(v):.1f}" for d, v in series[t])
+        out.append(f'<polyline points="{pts}" fill="none" stroke="{c}" stroke-width="2" '
+                   f'stroke-linejoin="round"/>')
+        d, v = series[t][-1]
+        labels.append([Y(v), t, c, v])
+    labels.sort()  # estä päällekkäiset nimet viivojen päässä
+    for k in range(1, len(labels)):
+        labels[k][0] = max(labels[k][0], labels[k - 1][0] + 14)
+    for y, t, c, v in labels:
+        out.append(f'<text x="{W-R+6}" y="{y+4:.1f}" fill="{c}" font-weight="600">'
+                   f'{escape(t)} {v*100:.0f} %</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+chart = history_chart(load_history())
 
 
 def bar(p):
@@ -53,7 +107,7 @@ tr.cut4 td,tr.cut12 td,tr.cut14 td{{border-bottom:2px solid var(--fg)}}
 @media(max-width:600px){{th:nth-child(n+6):not(:last-child),td:nth-child(n+6):not(:last-child){{display:none}}.w{{width:55%}}}}
 </style></head><body><main>
 <h1>Liiga 2026–27: putoamisriski</h1>
-<p>Monte Carlo -simulaatio, pelattu {played}/{len(games)} ottelua. Kolme heikointa putoaa. Päivitetty {datetime.now():%d.%m.%Y %H:%M}.</p>
+<p>Monte Carlo -simulaatio, pelattu {played}/{len(games)} ottelua. Kolme heikointa putoaa. Päivitetty {datetime.now(ZoneInfo('Europe/Helsinki')):%d.%m.%Y %H:%M}.</p>
 <table><thead><tr><th>#</th><th class="l">Joukkue</th><th>O</th><th>P</th><th>+/−</th><th>Odotettu P</th><th>Odotettu sij.</th><th class="l">Putoamis-%</th></tr></thead>
 <tbody>{table_rows}</tbody></table>
 <p class="legend">Viivat sijojen 4, 12 ja 14 jälkeen. Sijat 15–17 putoavat. Taulukko on nykyisessä sarjajärjestyksessä (pisteet, vähemmän pelatut, maaliero).</p>
@@ -61,6 +115,9 @@ tr.cut4 td,tr.cut12 td,tr.cut14 td{{border-bottom:2px solid var(--fg)}}
 <p>Joukkueet simulaation odotettujen runkosarjapisteiden mukaan.</p>
 <table><thead><tr><th>#</th><th class="l">Joukkue</th><th>P nyt</th><th>Odotettu P</th><th>Odotettu sij.</th><th class="l">Putoamis-%</th></tr></thead>
 <tbody>{exp_rows}</tbody></table>
+<h2>Putoamisriskin kehitys</h2>
+<p>Putoamistodennäköisyys tilannekuvittain (suurimman riskin joukkueet).</p>
+{chart}
 </main></body></html>"""
 
 out = HERE / "report.html"

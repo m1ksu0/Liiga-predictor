@@ -1,0 +1,64 @@
+name: Päivitä Liiga-ennuste
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # joka yö 04:00 UTC (06–07 Suomen aikaa), pelien jälkeen
+  workflow_dispatch:       # voi ajaa käsin Actions-välilehdeltä
+
+permissions:
+  contents: write   # history.csv:n commit
+  pages: write
+  id-token: write
+
+concurrency:
+  group: liiga-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Hae data ja simuloi
+        run: |
+          python fetch_data.py
+          python simulate.py --sims 20000
+
+      - name: Päivitä historia
+        run: python append_history.py
+
+      - name: Commitoi historia, jos muuttui
+        run: |
+          if [ -n "$(git status --porcelain data/history.csv)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/history.csv
+            git commit -m "Päivitä historia $(date -u +%F)"
+            git push
+          else
+            echo "Historia ei muuttunut"
+          fi
+
+      - name: Tee raportti
+        run: |
+          python build_html.py
+          mkdir -p site
+          cp report.html site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
