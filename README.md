@@ -70,10 +70,27 @@ Käyttöönotto kerran: repon **Settings → Pages → Build and deployment → 
 ## Miten malli toimii
 
 1. **Nykytila.** Pelatuista otteluista lasketaan pisteet (3-2-1-0), maalit ja ottelumäärät.
-2. **Voimatasot.** Jokaiselle joukkueelle arvioidaan hyökkäys- ja puolustuskerroin sekä yhteinen kotietu. Vastustajien taso huomioidaan iteroimalla, ja pienen otoksen luvut vedetään kohti keskiarvoa (`SHRINK`).
+2. **Voimatasot.** Jokaiselle joukkueelle arvioidaan hyökkäys- ja puolustuskerroin sekä yhteinen kotietu. Vastustajien taso huomioidaan iteroimalla. Pienen otoksen luvut vedetään kohti ennakkoa (`SHRINK`, 18 pseudo-ottelua), joka tulee pelaajabudjetista (katso alla). Kauden edetessä pelatut ottelut painavat yhä enemmän ja budjetin vaikutus pienenee.
 3. **Simulointi.** Jokainen jäljellä oleva ottelu arvotaan Poisson-jakaumalla. Joukkueiden voimat arvotaan jokaisessa simuloinnissa uudelleen estimaatin ympäriltä, jotta epävarmuus näkyy tuloksissa. Tasapelit ratkaistaan jatkoajalla tai rankkareilla voimasuhteen mukaan.
 4. **Sijoitus.** Jokaisen simuloidun kauden joukkueet järjestetään pisteiden, maalieron ja tehtyjen maalien mukaan. Tasatilanteessa ratkaisee arpa.
 5. **Tulokset.** Putoamis-% on osuus simuloinneista, joissa joukkue jäi kolmen viimeisen joukkoon. Odotetut pisteet ja sijoitus ovat simulaatioiden keskiarvoja.
+
+## Pelaajabudjetit ennakkotietona
+
+Pelaajabudjetit (`budgets.py`) kertovat jotain joukkueen todellisesta tasosta, joten malli ei lähde jokaisen joukkueen kohdalla liigan keskiarvosta vaan budjetin ennustamasta tasosta. Budjetti on vain ennakko: kun otteluita kertyy, tulokset ohjaavat arviota.
+
+**Kerroin `BETA` = 0,3** (maalieroa per ottelu per budjettimiljoona). Sen merkitys käytännössä: joukkue, jonka budjetti on miljoona euroa keskiarvoa suurempi, on ennakkoon noin 0,3 maalia per ottelu vahvempi. Maalimäärän keskiarvolla se vastaa noin 0,15 pistettä per ottelu.
+
+Kertoimen perustelu:
+- Mittasin budjetin yhteyden loppusijoituksiin kausilta 2024–25 ja 2025–26 (16 joukkuetta per kausi). Budjetti selitti 13–18 % pistemäärien vaihtelusta (R² 0,13–0,18). Kulmakertoimet olivat 0,36 ja 0,51 maalieroa per ottelu per miljoona.
+- Käytössä on näiden keskiarvoa (noin 0,43) varovaisempi 0,3, koska otos on vain kaksi kautta ja budjetit ovat seurojen ilmoittamia lukuja.
+- Käytännössä budjetti **ei määrää** tuloksia: noin 85 % joukkueiden välisistä eroista tulee muista tekijöistä. Se on kuitenkin parempi lähtöarvaus kuin keskiarvo, kun otteluita on vasta 15.
+
+Budjettien vaikutus nykytilanteessa on suurin joukkueille, joiden budjetti ja tulokset ovat ristiriidassa (esim. iso budjetti mutta huonot tulokset: putoamisriski laskee). Voit tutkia herkkyyttä ajamalla `python sensitivity_budget.py`, joka näyttää putoamis-%:t eri kertoimilla (0, 0,2, 0,3, 0,4, 0,6). Arvon 0 voi asettaa tiedostossa `budgets.py`, jos haluat poistaa budjetit käytöstä.
+
+Uuden kauden alussa päivitä `BUDGET` tiedostossa `budgets.py` ja harkitse kertoimen mittaamista uudelleen.
+
+**Huomio historiasta:** `data/history.csv`:n varhaisimmat tilannekuvat on laskettu ilman budjetteja. Kaaviossa näkyy siksi hyppy kohdassa, jossa budjetit otettiin käyttöön.
 
 ## Tiedostot
 
@@ -81,6 +98,8 @@ Käyttöönotto kerran: repon **Settings → Pages → Build and deployment → 
 |---|---|
 | `fetch_data.py` | Hakee ottelut rajapinnasta tiedostoon `games.json` |
 | `simulate.py` | Voimatasojen sovitus ja Monte Carlo -simulaatio |
+| `budgets.py` | Pelaajabudjetit ja kerroin `BETA` |
+| `sensitivity_budget.py` | Herkkyysanalyysi: putoamis-% eri budjettikertoimilla |
 | `append_history.py` | Tallentaa tilannekuvan tiedostoon `data/history.csv` |
 | `build_html.py` | Tekee `report.html`:n tuloksista ja historiasta |
 | `.github/workflows/update.yml` | Ajastettu päivitys ja julkaisu GitHub Pagesiin |
@@ -91,7 +110,7 @@ Käyttöönotto kerran: repon **Settings → Pages → Build and deployment → 
 
 ## Rajoitukset
 
-- Malli käyttää vain tämän kauden pelatuista otteluista saatuja maaleja. Se ei tunne pelaajia, loukkaantumisia, aiempia kausia eikä maaliodottamia.
+- Malli käyttää vain tämän kauden pelatuista otteluista saatuja maaleja. Se ei tunne pelaajia, loukkaantumisia eikä maaliodottamia. Aiempia kausia on käytetty vain budjettikertoimen mittaamiseen.
 - Mallia ei ole validoitu historiadatalla, joten luvut ovat arvioita eivätkä tarkkoja ennusteita.
 - Putoamissääntönä on kolme viimeistä suoraan (`RELEGATED` tiedostossa `simulate.py`). Tasapisteissä sijoitus ratkeaa maalieron ja tehtyjen maalien mukaan.
 - Kausi ja joukkuemäärä on kiinteä. Kauden voi vaihtaa komentoriviltä (`python fetch_data.py <kausi>`), mutta putoajien määrä ja muut säännöt on muutettava koodiin.

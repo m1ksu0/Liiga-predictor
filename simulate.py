@@ -11,6 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
+from budgets import BETA, BUDGET
+
 DATA = Path(__file__).with_name("games.json")
 RELEGATED = 3
 # "pseudo-otteluiden" määrä kohti keskiarvoa. Estimoitu maaliero/ottelu-hajonnasta:
@@ -45,16 +47,31 @@ def standings(teams, idx, played):
     return pts, gf, ga, gp
 
 
+def budget_prior(n, idx, base):
+    """Ennakko voimatasolle budjetista: s = BETA * (budjetti - keskiarvo) / (2 * base).
+
+    Hyökkäys exp(s), puolustus exp(-s); maaliero/ottelu on tällöin noin 2 * base * s.
+    """
+    s = np.zeros(n)
+    known = {i: BUDGET[t] for t, i in idx.items() if t in BUDGET}
+    if known and BETA:
+        mean = np.mean(list(known.values()))
+        for i, b in known.items():
+            s[i] = BETA * (b - mean) / (2 * base)
+    return np.exp(s), np.exp(-s)
+
+
 def fit_strengths(n, idx, played):
     """Iteratiivinen hyökkäys/puolustus-sovitus kotietu huomioiden."""
     hg = np.mean([g["home_goals"] for g in played])
     ag = np.mean([g["away_goals"] for g in played])
     base = (hg + ag) / 2
     home_f, away_f = hg / base, ag / base
-    att, dfn = np.ones(n), np.ones(n)
+    prior_att, prior_dfn = budget_prior(n, idx, base)
+    att, dfn = prior_att.copy(), prior_dfn.copy()
     for _ in range(100):
-        num_a, den_a = np.full(n, SHRINK * base), np.full(n, SHRINK * base)
-        num_d, den_d = np.full(n, SHRINK * base), np.full(n, SHRINK * base)
+        num_a, den_a = SHRINK * base * prior_att, np.full(n, SHRINK * base)
+        num_d, den_d = SHRINK * base * prior_dfn, np.full(n, SHRINK * base)
         for g in played:
             h, a = idx[g["home"]], idx[g["away"]]
             exp_h = base * home_f * att[h] * dfn[a]
