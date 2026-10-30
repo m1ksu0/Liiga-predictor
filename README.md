@@ -73,9 +73,9 @@ Käyttöönotto kerran: repon **Settings → Pages → Build and deployment → 
 
 1. **Nykytila.** Pelatuista otteluista lasketaan pisteet (3-2-1-0), maalit ja ottelumäärät.
 2. **Voimatasot.** Jokaiselle joukkueelle arvioidaan hyökkäys- ja puolustuskerroin sekä yhteinen kotietu. Vastustajien taso huomioidaan iteroimalla. Pienen otoksen luvut vedetään kohti ennakkoa (`SHRINK`, 18 pseudo-ottelua), joka tulee pelaajabudjetista (katso alla). Kauden edetessä pelatut ottelut painavat yhä enemmän ja budjetin vaikutus pienenee.
-3. **Simulointi.** Jokainen jäljellä oleva ottelu arvotaan Poisson-jakaumalla. Joukkueiden voimat arvotaan jokaisessa simuloinnissa uudelleen estimaatin ympäriltä, jotta epävarmuus näkyy tuloksissa. Tasapelit ratkaistaan jatkoajalla tai rankkareilla voimasuhteen mukaan.
+3. **Simulointi.** Koko jäljellä oleva kausi pelataan läpi 20 000 kertaa (`--sims`), ja jokainen läpiajo on yksi itsenäinen mahdollinen kausi. Jokainen jäljellä oleva ottelu arvotaan Poisson-jakaumalla. Joukkueiden voimat arvotaan jokaisessa simuloinnissa uudelleen estimaatin ympäriltä, jotta epävarmuus näkyy tuloksissa. Tasapelit ratkaistaan jatkoajalla tai rankkareilla voimasuhteen mukaan.
 4. **Sijoitus.** Jokaisen simuloidun kauden joukkueet järjestetään pisteiden, maalieron ja tehtyjen maalien mukaan. Tasatilanteessa ratkaisee arpa.
-5. **Tulokset.** Putoamis-% on osuus simuloinneista, joissa joukkue jäi kolmen viimeisen joukkoon. Odotetut pisteet ja sijoitus ovat simulaatioiden keskiarvoja.
+5. **Tulokset.** Putoamis-% on osuus 20 000 simuloidusta kaudesta, joissa joukkue jäi kolmen viimeisen joukkoon. Odotetut pisteet ja sijoitus ovat simulaatioiden keskiarvoja.
 
 ## Pelaajabudjetit ennakkotietona
 
