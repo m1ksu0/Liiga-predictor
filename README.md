@@ -1,5 +1,7 @@
 # Liiga putoamisriski
 
+**Tulokset verkossa: <https://m1ksu0.github.io/Liiga-predictor/>** (päivittyy automaattisesti joka yö).
+
 Monte Carlo -simulaatio, joka laskee SM-liigan kauden 2026–27 putoamistodennäköisyydet. Kaudella on 17 joukkuetta, 64 runkosarjaottelua per joukkue, ja kolme heikointa putoaa suoraan.
 
 Data haetaan Liigan rajapinnasta (`https://liiga.fi/api/v2/games`). Tulokset tallentuvat HTML-raportiksi (`report.html`), jossa on sarjataulukko, putoamis-% ja odotettu loppusijoitus.
@@ -65,7 +67,7 @@ Windowsin konsolissa ääkköset voivat näkyä väärin. Korjaus: aseta `PYTHON
 
 Työnkulku `.github/workflows/update.yml` ajetaan joka yö kello 04:00 UTC. Se hakee datan, simuloi, lisää historiaan uuden tilannekuvan (vain jos otteluita on pelattu lisää, ja commitoi sen repoon) ja julkaisee raportin GitHub Pagesiin.
 
-Käyttöönotto kerran: repon **Settings → Pages → Build and deployment → Source: GitHub Actions**. Sen jälkeen työnkulun voi ajaa heti käsin välilehdeltä **Actions → Päivitä Liiga-ennuste → Run workflow**. Sivun osoite on `https://<käyttäjä>.github.io/<repo>/`.
+Käyttöönotto kerran: repon **Settings → Pages → Build and deployment → Source: GitHub Actions**. Sen jälkeen työnkulun voi ajaa heti käsin välilehdeltä **Actions → Päivitä Liiga-ennuste → Run workflow**. Sivun osoite on <https://m1ksu0.github.io/Liiga-predictor/>.
 
 ## Miten malli toimii
 
